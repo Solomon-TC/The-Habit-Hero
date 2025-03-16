@@ -1,0 +1,5 @@
+# This file is used to configure the Supabase Edge Function
+
+# Specify the Deno version
+[build]
+deno_version = "1.37.0"
