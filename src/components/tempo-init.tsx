@@ -1,14 +1,6 @@
 "use client";
 
-import { TempoDevtools } from "tempo-devtools";
-import { useEffect } from "react";
-
 export function TempoInit() {
-  useEffect(() => {
-    if (process.env.NEXT_PUBLIC_TEMPO) {
-      TempoDevtools.init();
-    }
-  }, []);
-
+  // Tempo integration disabled to fix module errors
   return null;
 }

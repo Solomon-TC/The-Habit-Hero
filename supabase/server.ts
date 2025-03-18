@@ -2,7 +2,19 @@ import { createServerClient } from "@supabase/ssr";
 import { cookies } from "next/headers";
 
 export const createClient = async () => {
-  const cookieStore = cookies();
+  let cookieStore;
+
+  try {
+    cookieStore = cookies();
+  } catch (error) {
+    console.error("Error accessing cookies store:", error);
+    // Return a client with no cookie handling if cookies() fails
+    return createServerClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+      { cookies: { getAll: () => [], setAll: () => {} } },
+    );
+  }
 
   return createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -32,6 +44,9 @@ export const createClient = async () => {
           }
         },
       },
-    }
+      global: {
+        fetch: fetch.bind(globalThis),
+      },
+    },
   );
 };

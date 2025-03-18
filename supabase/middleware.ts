@@ -43,28 +43,10 @@ export const updateSession = async (request: NextRequest) => {
       error,
     } = await supabase.auth.getUser();
 
-    // If user is authenticated, ensure they have a record in the users table
+    // If user is authenticated, we'll check for friend code
+    // User creation is handled by database triggers
     if (user && !error) {
       try {
-        // Check if user exists in the users table
-        const { data: existingUser, error: userError } = await supabase
-          .from("users")
-          .select("id")
-          .eq("id", user.id)
-          .maybeSingle();
-
-        // If user doesn't exist in the users table, create a record
-        if (!existingUser && !userError) {
-          await supabase.from("users").insert({
-            id: user.id,
-            email: user.email,
-            name: user.user_metadata?.full_name || user.email,
-            token_identifier: user.id,
-            created_at: new Date().toISOString(),
-            updated_at: new Date().toISOString(),
-          });
-        }
-
         // Check if user has a friend code in the friend_codes table
         const { data: friendCode, error: friendCodeError } = await supabase
           .from("friend_codes")

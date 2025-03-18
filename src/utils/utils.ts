@@ -12,5 +12,9 @@ export function encodedRedirect(
   path: string,
   message: string,
 ) {
+  if (path === "/dashboard" && type === "success" && !message) {
+    return redirect(path);
+  }
+
   return redirect(`${path}?${type}=${encodeURIComponent(message)}`);
 }

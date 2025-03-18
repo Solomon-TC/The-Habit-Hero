@@ -20,47 +20,49 @@ export const signUpAction = async (formData: FormData) => {
     );
   }
 
-  const {
-    data: { user },
-    error,
-  } = await supabase.auth.signUp({
-    email,
-    password,
-    options: {
-      emailRedirectTo: `${origin}/auth/callback`,
-      data: {
-        full_name: fullName,
-        email: email,
-      },
-    },
-  });
-
-  if (error) {
-    return encodedRedirect("error", "/sign-up", error.message);
-  }
-
-  if (user) {
-    try {
-      // Insert the user into the users table
-      // The friend code will be handled by the database trigger
-      const { error: updateError } = await supabase.from("users").upsert(
-        {
-          id: user.id,
-          user_id: user.id,
-          name: fullName,
+  try {
+    const {
+      data: { user },
+      error,
+    } = await supabase.auth.signUp({
+      email,
+      password,
+      options: {
+        emailRedirectTo: `${origin}/auth/callback`,
+        data: {
+          full_name: fullName,
           email: email,
-          token_identifier: user.id,
-          created_at: new Date().toISOString(),
         },
-        { onConflict: "id" },
-      );
+      },
+    });
 
-      if (updateError) {
-        // Error handling without console.error
-      }
-    } catch (err) {
-      // Error handling without console.error
+    if (error) {
+      return encodedRedirect("error", "/sign-up", error.message);
     }
+
+    if (user) {
+      try {
+        // Ensure user exists in the users table
+        const { error: userError } = await supabase.rpc("ensure_user_exists", {
+          user_id: user.id,
+          user_email: email,
+          user_name: fullName,
+        });
+
+        if (userError) {
+          console.error("Error ensuring user exists:", userError);
+        }
+      } catch (err) {
+        console.error("Error in user creation:", err);
+      }
+    }
+  } catch (err) {
+    console.error("Error in sign up process:", err);
+    return encodedRedirect(
+      "error",
+      "/sign-up",
+      "An unexpected error occurred. Please try again.",
+    );
   }
 
   return encodedRedirect(
@@ -75,16 +77,48 @@ export const signInAction = async (formData: FormData) => {
   const password = formData.get("password") as string;
   const supabase = await createClient();
 
-  const { error } = await supabase.auth.signInWithPassword({
-    email,
-    password,
-  });
+  try {
+    const { data, error } = await supabase.auth.signInWithPassword({
+      email,
+      password,
+    });
 
-  if (error) {
-    return encodedRedirect("error", "/sign-in", error.message);
+    if (error) {
+      return encodedRedirect("error", "/sign-in", error.message);
+    }
+
+    // Ensure user exists in the users table after successful sign-in
+    if (data.user) {
+      try {
+        const { error: userError } = await supabase.rpc("ensure_user_exists", {
+          user_id: data.user.id,
+          user_email: data.user.email,
+          user_name: data.user.user_metadata?.full_name || "",
+        });
+
+        if (userError) {
+          console.error(
+            "Error ensuring user exists during sign-in:",
+            userError,
+          );
+          // Continue with sign-in even if there's an error ensuring the user exists
+        }
+      } catch (err) {
+        console.error("Error in user verification during sign-in:", err);
+        // Continue with sign-in even if there's an error in user verification
+      }
+    }
+
+    // Use encodedRedirect instead of redirect to avoid NEXT_REDIRECT error
+    return encodedRedirect("success", "/dashboard", "");
+  } catch (err) {
+    console.error("Error in sign in process:", err);
+    return encodedRedirect(
+      "error",
+      "/sign-in",
+      "An unexpected error occurred. Please try again.",
+    );
   }
-
-  return redirect("/dashboard");
 };
 
 export const forgotPasswordAction = async (formData: FormData) => {
